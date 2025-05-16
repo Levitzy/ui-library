@@ -46,15 +46,16 @@ function Utility:TweenObject(obj, properties, duration, ...)
 end
 
 local M3Light = {
-    SchemeColor = Color3.fromRGB(103, 80, 164),
-    Background = Color3.fromRGB(255, 251, 254),
-    Header = Color3.fromRGB(245, 240, 249), 
-    TextColor = Color3.fromRGB(28, 27, 31),
-    ElementColor = Color3.fromRGB(234, 221, 255),
-    ElementHoverColor = Color3.fromRGB(220, 205, 245),
-    OnElementColor = Color3.fromRGB(70, 50, 130),
+    SchemeColor = Color3.fromRGB(103, 80, 164), -- General Accent, can be primary
+    Background = Color3.fromRGB(255, 251, 254), -- Overall page background
+    Header = Color3.fromRGB(245, 240, 249), -- Background for headers, side panels if distinct
+    TextColor = Color3.fromRGB(28, 27, 31), -- Default text color on Background/Surface
+    ElementColor = Color3.fromRGB(234, 221, 255), -- Generic element background (e.g., primary container)
+    ElementHoverColor = Color3.fromRGB(220, 205, 245), -- Hover for ElementColor
+    OnElementColor = Color3.fromRGB(70, 50, 130), -- Text/icon on ElementColor
 
     colorPrimary = Color3.fromRGB(103, 80, 164),
+    colorPrimaryHover = Color3.fromRGB(90, 70, 150), -- Slightly darker/modified for hover
     colorOnPrimary = Color3.fromRGB(255, 255, 255),
     colorPrimaryContainer = Color3.fromRGB(234, 221, 255),
     colorOnPrimaryContainer = Color3.fromRGB(70, 50, 130),
@@ -65,12 +66,12 @@ local M3Light = {
     colorTertiaryContainer = Color3.fromRGB(255, 218, 228),
     colorOnTertiaryContainer = Color3.fromRGB(55, 11, 30),
 
-    colorSurface = Color3.fromRGB(255, 251, 254),
-    colorOnSurface = Color3.fromRGB(28, 27, 31),
-    colorSurfaceVariant = Color3.fromRGB(231, 224, 236),
-    colorOnSurfaceVariant = Color3.fromRGB(73, 69, 79),
-    colorOutline = Color3.fromRGB(121, 116, 126),
-    colorScrim = Color3.fromRGB(0,0,0)
+    colorSurface = Color3.fromRGB(255, 251, 254), -- Background for cards, sheets, menus
+    colorOnSurface = Color3.fromRGB(28, 27, 31), -- Text/icons on Surface
+    colorSurfaceVariant = Color3.fromRGB(231, 224, 236), -- Contrasting surface variant
+    colorOnSurfaceVariant = Color3.fromRGB(73, 69, 79), -- Text/icons on SurfaceVariant
+    colorOutline = Color3.fromRGB(121, 116, 126), -- Borders, dividers
+    colorScrim = Color3.fromRGB(0,0,0) -- Scrim for modals/drawers
 }
 
 local M3Dark = {
@@ -78,11 +79,12 @@ local M3Dark = {
     Background = Color3.fromRGB(28, 27, 31),
     Header = Color3.fromRGB(50, 47, 55), 
     TextColor = Color3.fromRGB(230, 225, 229),
-    ElementColor = Color3.fromRGB(79, 55, 139),
-    ElementHoverColor = Color3.fromRGB(95, 70, 155),
-    OnElementColor = Color3.fromRGB(234, 221, 255),
+    ElementColor = Color3.fromRGB(79, 55, 139), -- primaryContainer in dark
+    ElementHoverColor = Color3.fromRGB(95, 70, 155), -- Hover for ElementColor
+    OnElementColor = Color3.fromRGB(234, 221, 255), -- onPrimaryContainer in dark
 
     colorPrimary = Color3.fromRGB(208, 188, 255),
+    colorPrimaryHover = Color3.fromRGB(218, 198, 255), -- Slightly lighter for hover
     colorOnPrimary = Color3.fromRGB(56, 30, 114),
     colorPrimaryContainer = Color3.fromRGB(79, 55, 139),
     colorOnPrimaryContainer = Color3.fromRGB(234, 221, 255),
@@ -93,7 +95,7 @@ local M3Dark = {
     colorTertiaryContainer = Color3.fromRGB(99, 59, 72),
     colorOnTertiaryContainer = Color3.fromRGB(255, 218, 228),
 
-    colorSurface = Color3.fromRGB(28, 27, 31),
+    colorSurface = Color3.fromRGB(28, 27, 31), 
     colorOnSurface = Color3.fromRGB(230, 225, 229),
     colorSurfaceVariant = Color3.fromRGB(73, 69, 79),
     colorOnSurfaceVariant = Color3.fromRGB(202, 196, 208),
@@ -102,7 +104,7 @@ local M3Dark = {
 }
 
 local themes = {
-    Default = M3Light,
+    Default = M3Dark, -- Changed default to M3Dark
     MaterialLightTheme = M3Light,
     MaterialDarkTheme = M3Dark
 }
@@ -114,7 +116,13 @@ pcall(function()
     if not pcall(function() readfile(Name) end) then
         writefile(Name, game:GetService('HttpService'):JSONEncode(SettingsT))
     end
-    Settings = game:GetService('HttpService'):JSONDecode(readfile(Name))
+    local success, result = pcall(function() return game:GetService('HttpService'):JSONDecode(readfile(Name)) end)
+    if success then
+        Settings = result
+    else
+        Settings = {} -- Initialize with empty if decode fails
+        warn("Kavo UI: Failed to decode settings, using default. Error: " .. tostring(result))
+    end
 end)
 
 local LibName = "KavoLib_M3_" .. tostring(math.random(1, 10000))
@@ -130,9 +138,24 @@ function Kavo.CreateLib(kavName, themeChoice)
     if type(themeChoice) == "string" and themes[themeChoice] then
         themeList = themes[themeChoice]
     elseif type(themeChoice) == "table" then
-        themeList = themeChoice 
+        -- Basic validation for custom theme table
+        local requiredKeys = {"colorPrimary", "Background", "Header", "TextColor", "ElementColor", "colorOnPrimary", "colorSurface", "colorOnSurface", "colorOutline"}
+        local missingKey = false
+        for _, key in ipairs(requiredKeys) do
+            if themeChoice[key] == nil then
+                warn("Kavo UI: Custom theme missing required key: " .. key)
+                missingKey = true
+                break
+            end
+        end
+        if missingKey then
+            warn("Kavo UI: Custom theme is invalid, falling back to default.")
+            themeList = themes.Default
+        else
+            themeList = themeChoice
+        end
     else
-        themeList = themes.Default
+        themeList = themes.Default -- Default to M3Dark now
     end
 
     kavName = kavName or "Library"
@@ -187,7 +210,7 @@ function Kavo.CreateLib(kavName, themeChoice)
     title.Size = UDim2.new(0.8, 0, 1, 0)
     title.Font = Enum.Font.GothamBold
     title.Text = kavName
-    title.TextColor3 = themeList.colorOnSurfaceVariant
+    title.TextColor3 = themeList.colorOnSurfaceVariant 
     title.TextSize = 18.000
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.TextYAlignment = Enum.TextYAlignment.Center
@@ -199,7 +222,7 @@ function Kavo.CreateLib(kavName, themeChoice)
     close.Size = UDim2.new(0, 24, 0, 24)
     close.ZIndex = 2
     close.Image = "rbxassetid://3926305904" 
-    close.ImageColor3 = themeList.colorOnSurfaceVariant
+    close.ImageColor3 = themeList.colorOnSurfaceVariant 
     close.ImageRectOffset = Vector2.new(284, 4)
     close.ImageRectSize = Vector2.new(24, 24)
     close.MouseButton1Click:Connect(function()
@@ -236,7 +259,8 @@ function Kavo.CreateLib(kavName, themeChoice)
 
     pages.Name = "pages"
     pages.Parent = Main
-    pages.BackgroundTransparency = 1.000
+    pages.BackgroundColor3 = themeList.Background -- Ensure page background is set
+    pages.BackgroundTransparency = 0 -- Make sure it's not transparent
     pages.BorderSizePixel = 0
     pages.Position = UDim2.new(0, 160, 0, 40)
     pages.Size = UDim2.new(1, -160, 1, -40 - 40) 
@@ -280,6 +304,7 @@ function Kavo.CreateLib(kavName, themeChoice)
             close.ImageColor3 = themeList.colorOnSurfaceVariant
             MainSide.BackgroundColor3 = themeList.Header
             SideRightBorder.BackgroundColor3 = themeList.colorOutline
+            pages.BackgroundColor3 = themeList.Background -- Reinforce page background
             InfoContainerBottomBorder.BackgroundColor3 = themeList.colorOutline
             blurFrame.BackgroundColor3 = themeList.colorScrim
         end
@@ -307,7 +332,8 @@ function Kavo.CreateLib(kavName, themeChoice)
         page.Name = "Page"
         page.Parent = Pages
         page.Active = true
-        page.BackgroundColor3 = themeList.Background
+        page.BackgroundColor3 = themeList.Background -- Crucial for content area background
+        page.BackgroundTransparency = 0 -- Ensure it's opaque
         page.BorderSizePixel = 0
         page.Size = UDim2.new(1, 0, 1, 0)
         page.ScrollBarThickness = 8
@@ -330,7 +356,7 @@ function Kavo.CreateLib(kavName, themeChoice)
 
         local function UpdateCanvasSize()
             local contentHeight = pageListing.AbsoluteContentSize.Y
-            page.CanvasSize = UDim2.new(0, 0, 0, contentHeight)
+            page.CanvasSize = UDim2.new(0, 0, 0, contentHeight + UIPadding.PaddingTop.Offset + UIPadding.PaddingBottom.Offset)
         end
         
         page.ChildAdded:Connect(UpdateCanvasSize)
@@ -353,13 +379,14 @@ function Kavo.CreateLib(kavName, themeChoice)
         local function SetActiveTabStyle()
             tabButton.BackgroundColor3 = themeList.colorPrimaryContainer
             tabButton.TextColor3 = themeList.colorOnPrimaryContainer
+            tabButton.BackgroundTransparency = 0
             page.Visible = true
             UpdateCanvasSize()
         end
 
         local function SetInactiveTabStyle()
-            tabButton.BackgroundColor3 = Color3.new(0,0,0) 
-            tabButton.BackgroundTransparency = 1
+            tabButton.BackgroundColor3 = themeList.Header -- Or a transparent color
+            tabButton.BackgroundTransparency = 0 -- if using Header color, else 1
             tabButton.TextColor3 = themeList.colorOnSurfaceVariant
             page.Visible = false
         end
@@ -375,9 +402,9 @@ function Kavo.CreateLib(kavName, themeChoice)
             for i,v in next, Pages:GetChildren() do
                 if v:IsA("ScrollingFrame") then v.Visible = false end
             end
-            for i,v in next, tabFrames:GetChildren() do
-                if v:IsA("TextButton") and v.Name:match("TabButton") then
-                    Utility:TweenObject(v, { BackgroundColor3 = Color3.new(0,0,0), BackgroundTransparency = 1, TextColor3 = themeList.colorOnSurfaceVariant }, 0.2)
+            for i,tb in next, tabFrames:GetChildren() do
+                if tb:IsA("TextButton") and tb.Name:match("TabButton") then
+                     Utility:TweenObject(tb, { BackgroundColor3 = themeList.Header, BackgroundTransparency = 0, TextColor3 = themeList.colorOnSurfaceVariant }, 0.2)
                 end
             end
             Utility:TweenObject(tabButton, { BackgroundColor3 = themeList.colorPrimaryContainer, BackgroundTransparency = 0, TextColor3 = themeList.colorOnPrimaryContainer }, 0.2)
@@ -394,13 +421,21 @@ function Kavo.CreateLib(kavName, themeChoice)
                 page.ScrollBarImageColor3 = themeList.colorOutline
                 
                 if page.Visible then
-                    tabButton.BackgroundColor3 = themeList.colorPrimaryContainer
-                    tabButton.TextColor3 = themeList.colorOnPrimaryContainer
+                    if tabButton.BackgroundColor3 ~= themeList.colorPrimaryContainer then
+                        tabButton.BackgroundColor3 = themeList.colorPrimaryContainer
+                    end
+                    if tabButton.TextColor3 ~= themeList.colorOnPrimaryContainer then
+                         tabButton.TextColor3 = themeList.colorOnPrimaryContainer
+                    end
                     tabButton.BackgroundTransparency = 0
                 else
-                    tabButton.BackgroundColor3 = Color3.new(0,0,0)
-                    tabButton.TextColor3 = themeList.colorOnSurfaceVariant
-                    tabButton.BackgroundTransparency = 1
+                    if tabButton.BackgroundColor3 ~= themeList.Header then
+                        tabButton.BackgroundColor3 = themeList.Header
+                    end
+                     if tabButton.TextColor3 ~= themeList.colorOnSurfaceVariant then
+                        tabButton.TextColor3 = themeList.colorOnSurfaceVariant
+                     end
+                    tabButton.BackgroundTransparency = 0 
                 end
             end
         end)()
@@ -594,7 +629,7 @@ function Kavo.CreateLib(kavName, themeChoice)
                 local hovering = false
                 buttonElement.MouseEnter:Connect(function()
                     hovering = true
-                    Utility:TweenObject(buttonElement, { BackgroundColor3 = themeList.ElementHoverColor }, 0.15)
+                    Utility:TweenObject(buttonElement, { BackgroundColor3 = themeList.colorPrimaryHover or themeList.ElementHoverColor }, 0.15)
                 end)
                 buttonElement.MouseLeave:Connect(function()
                     hovering = false
@@ -634,7 +669,7 @@ function Kavo.CreateLib(kavName, themeChoice)
                     moreInfo.Visible = true
                     blurFrame.Visible = true
                     Utility:TweenObject(blurFrame, {BackgroundTransparency = 0.5}, 0.2)
-                    Utility:TweenObject(buttonElement, { BackgroundColor3 = themeList.ElementHoverColor }, 0.15)
+                    Utility:TweenObject(buttonElement, { BackgroundColor3 = themeList.colorPrimaryHover or themeList.ElementHoverColor }, 0.15)
                     
                     task.delay(2, function()
                         if focusing and moreInfo.Visible then
@@ -655,7 +690,7 @@ function Kavo.CreateLib(kavName, themeChoice)
                         if not hovering and not focusing then
                             buttonElement.BackgroundColor3 = themeList.colorPrimary
                         elseif hovering and not focusing then
-                             buttonElement.BackgroundColor3 = themeList.ElementHoverColor
+                             buttonElement.BackgroundColor3 = themeList.colorPrimaryHover or themeList.ElementHoverColor
                         end
                         btnInfo.TextColor3 = themeList.colorOnPrimary
                         viewInfo.ImageColor3 = themeList.colorOnPrimary
@@ -823,9 +858,9 @@ function Kavo.CreateLib(kavName, themeChoice)
                         TextBox.PlaceholderColor3 = themeList.colorOnSurfaceVariant
                         TextBox.TextColor3 = themeList.colorOnSurface
                         if not TextBox:IsFocused() and TextBox.Text == "" then
-                            textLabel.TextColor3 = themeList.colorOnSurfaceVariant
+                            if textLabel.TextColor3 ~= themeList.colorOnSurfaceVariant then textLabel.TextColor3 = themeList.colorOnSurfaceVariant end
                         elseif not TextBox:IsFocused() and TextBox.Text ~= "" then
-                             textLabel.TextColor3 = themeList.colorOnSurfaceVariant
+                             if textLabel.TextColor3 ~= themeList.colorOnSurfaceVariant then textLabel.TextColor3 = themeList.colorOnSurfaceVariant end
                         end
                         viewInfo.ImageColor3 = themeList.colorSecondary
                         moreInfo.BackgroundColor3 = themeList.colorTertiaryContainer
@@ -971,11 +1006,11 @@ function Kavo.CreateLib(kavName, themeChoice)
                         moreInfo.TextColor3 = themeList.colorOnTertiaryContainer
                         
                         if toggled then
-                            switchTrack.BackgroundColor3 = themeList.colorPrimary
-                            switchThumb.ImageColor3 = themeList.colorOnPrimary
+                            if switchTrack.BackgroundColor3 ~= themeList.colorPrimary then switchTrack.BackgroundColor3 = themeList.colorPrimary end
+                            if switchThumb.ImageColor3 ~= themeList.colorOnPrimary then switchThumb.ImageColor3 = themeList.colorOnPrimary end
                         else
-                            switchTrack.BackgroundColor3 = themeList.colorOutline
-                            switchThumb.ImageColor3 = themeList.colorSurfaceVariant
+                            if switchTrack.BackgroundColor3 ~= themeList.colorOutline then switchTrack.BackgroundColor3 = themeList.colorOutline end
+                            if switchThumb.ImageColor3 ~= themeList.colorSurfaceVariant then switchThumb.ImageColor3 = themeList.colorSurfaceVariant end
                         end
                     end
                 end)()
@@ -1204,7 +1239,9 @@ function Kavo.CreateLib(kavName, themeChoice)
                         valueLabel.TextColor3 = themeList.colorOnSurfaceVariant
                         trackBase.BackgroundColor3 = themeList.colorSurfaceVariant
                         trackFill.BackgroundColor3 = themeList.colorPrimary
-                        if not dragging then thumb.BackgroundColor3 = themeList.colorPrimary end
+                        if not dragging then 
+                            if thumb.BackgroundColor3 ~= themeList.colorPrimary then thumb.BackgroundColor3 = themeList.colorPrimary end
+                        end
                         viewInfo.ImageColor3 = themeList.colorSecondary
                         moreInfo.BackgroundColor3 = themeList.colorTertiaryContainer
                         moreInfo.TextColor3 = themeList.colorOnTertiaryContainer
@@ -1346,7 +1383,7 @@ function Kavo.CreateLib(kavName, themeChoice)
                     optionButton.TextXAlignment = Enum.TextXAlignment.Left
                     optionButton.AutoButtonColor = false
 
-                    optionButton.MouseEnter:Connect(function() Utility:TweenObject(optionButton, {BackgroundColor3 = themeList.ElementHoverColor}, 0.1) end)
+                    optionButton.MouseEnter:Connect(function() Utility:TweenObject(optionButton, {BackgroundColor3 = themeList.ElementHoverColor or themeList.colorPrimaryContainer}, 0.1) end)
                     optionButton.MouseLeave:Connect(function() Utility:TweenObject(optionButton, {BackgroundColor3 = themeList.colorSurfaceVariant}, 0.1) end)
                     
                     optionButton.MouseButton1Click:Connect(function()
@@ -1451,7 +1488,7 @@ function Kavo.CreateLib(kavName, themeChoice)
                         for _, child in ipairs(listLayout:GetChildren()) do
                             if child:IsA("TextButton") then
                                 child.TextColor3 = themeList.colorOnSurfaceVariant
-                                if child.BackgroundColor3 ~= themeList.ElementHoverColor then 
+                                if child.BackgroundColor3 ~= (themeList.ElementHoverColor or themeList.colorPrimaryContainer) then 
                                     child.BackgroundColor3 = themeList.colorSurfaceVariant
                                 end
                             end
@@ -1461,6 +1498,8 @@ function Kavo.CreateLib(kavName, themeChoice)
 
                 function DropFunction:Refresh(newList)
                     list = newList or {}
+                    currentSelection = list[1] or dropname -- Update currentSelection if list changes
+                    itemTextLabel.Text = currentSelection
                     PopulateDropdown(list)
                     if opened then 
                         local listHeight = math.min(dropdownListFrame.CanvasSize.Y.Offset, 160)
@@ -1572,13 +1611,13 @@ function Kavo.CreateLib(kavName, themeChoice)
                                 keyButton.Text = currentKey.Name
                                 isBinding = false
                                 Utility:TweenObject(keyButton, {BackgroundColor3 = themeList.colorSurfaceVariant, TextColor3 = themeList.colorOnSurfaceVariant}, 0.1)
-                                if connection then connection:Disconnect() end
+                                if connection then connection:Disconnect() connection = nil end
                             elseif inputObj.UserInputType == Enum.UserInputType.MouseButton1 or inputObj.UserInputType == Enum.UserInputType.MouseButton2 or inputObj.UserInputType == Enum.UserInputType.MouseButton3 then
-                                currentKey = inputObj.UserInputType -- Store as UserInputType for mouse
+                                currentKey = inputObj.UserInputType 
                                 keyButton.Text = currentKey.Name
                                 isBinding = false
                                 Utility:TweenObject(keyButton, {BackgroundColor3 = themeList.colorSurfaceVariant, TextColor3 = themeList.colorOnSurfaceVariant}, 0.1)
-                                if connection then connection:Disconnect() end
+                                if connection then connection:Disconnect() connection = nil end
                             end
                         end
                     end)
@@ -1589,7 +1628,7 @@ function Kavo.CreateLib(kavName, themeChoice)
                     if not isBinding then
                         if inputObj.UserInputType == Enum.UserInputType.Keyboard and inputObj.KeyCode == currentKey then
                             callback()
-                        elseif inputObj.UserInputType == currentKey then -- Check for mouse UserInputType
+                        elseif inputObj.UserInputType == currentKey then 
                              callback()
                         end
                     end
@@ -1624,8 +1663,8 @@ function Kavo.CreateLib(kavName, themeChoice)
                         keybindElement.BackgroundColor3 = themeList.colorSurface
                         keyLabel.TextColor3 = themeList.colorOnSurface
                         if not isBinding then
-                            keyButton.BackgroundColor3 = themeList.colorSurfaceVariant
-                            keyButton.TextColor3 = themeList.colorOnSurfaceVariant
+                            if keyButton.BackgroundColor3 ~= themeList.colorSurfaceVariant then keyButton.BackgroundColor3 = themeList.colorSurfaceVariant end
+                            if keyButton.TextColor3 ~= themeList.colorOnSurfaceVariant then keyButton.TextColor3 = themeList.colorOnSurfaceVariant end
                         end
                         viewInfo.ImageColor3 = themeList.colorSecondary
                         moreInfo.BackgroundColor3 = themeList.colorTertiaryContainer
@@ -1664,15 +1703,13 @@ function Kavo.CreateLib(kavName, themeChoice)
                 local hueThumb = Instance.new("Frame")
                 local hueThumbCorner = Instance.new("UICorner")
                 
-                local rainbowToggleFrame = Instance.new("Frame")
-                local rainbowLabel = Instance.new("TextLabel")
-                local rainbowSwitch = Kavo.CreateLib("Temp", themeList).NewTab("Temp").NewSection("Temp", true):NewToggle("Rainbow", "", false, function(state)
-                    isRainbow = state
-                    if not isRainbow then
-                        callback(currentColor)
-                    end
-                end)
-                rainbowSwitch:UpdateToggle(nil, false)
+                local rainbowToggleContainer = Instance.new("Frame")
+                local rainbowToggleLabel = Instance.new("TextLabel")
+                local rainbowSwitchTrack = Instance.new("Frame")
+                local rainbowTrackCorner = Instance.new("UICorner")
+                local rainbowSwitchThumb = Instance.new("ImageLabel")
+                local rainbowThumbCorner = Instance.new("UICorner")
+                local rainbowClickDetector = Instance.new("TextButton")
 
 
                 cpElement.Name = "ColorPickerElement"
@@ -1758,7 +1795,7 @@ function Kavo.CreateLib(kavName, themeChoice)
                 
                 svThumb.Name = "SVThumb"
                 svThumb.Parent = saturationValuePicker
-                svThumb.BackgroundColor3 = Color3.fromRGB(255,255,255)
+                svThumb.BackgroundColor3 = Color3.fromRGB(255,255,255) 
                 svThumb.Size = UDim2.new(0,12,0,12)
                 svThumb.AnchorPoint = Vector2.new(0.5,0.5)
                 svThumb.BorderSizePixel = 2
@@ -1784,28 +1821,67 @@ function Kavo.CreateLib(kavName, themeChoice)
                 hueThumbCorner.CornerRadius = UDim.new(0,3)
                 hueThumbCorner.Parent = hueThumb
                 
-                rainbowToggleFrame.Name = "RainbowToggleFrame"
-                rainbowToggleFrame.Parent = pickerFrame
-                rainbowToggleFrame.BackgroundTransparency = 1
-                rainbowToggleFrame.Size = UDim2.new(1,0,0,32)
-                
-                if rainbowSwitch and rainbowSwitch.Parent then
-                    rainbowSwitch.Parent = rainbowToggleFrame
-                    rainbowSwitch.Position = UDim2.new(1,-60,0.5,-16)
-                    rainbowSwitch.Size = UDim2.new(0,52,0,32)
-                end
+                rainbowToggleContainer.Name = "RainbowToggleContainer"
+                rainbowToggleContainer.Parent = pickerFrame
+                rainbowToggleContainer.BackgroundTransparency = 1
+                rainbowToggleContainer.Size = UDim2.new(1,0,0,32)
 
-                rainbowLabel.Name = "RainbowLabel"
-                rainbowLabel.Parent = rainbowToggleFrame
-                rainbowLabel.BackgroundTransparency = 1
-                rainbowLabel.Font = Enum.Font.Gotham
-                rainbowLabel.Text = "Rainbow Mode"
-                rainbowLabel.TextColor3 = themeList.colorOnSurfaceVariant
-                rainbowLabel.TextSize = 13
-                rainbowLabel.Position = UDim2.new(0,0,0,0)
-                rainbowLabel.Size = UDim2.new(1,-70,1,0)
-                rainbowLabel.TextXAlignment = Enum.TextXAlignment.Left
-                rainbowLabel.TextYAlignment = Enum.TextYAlignment.Center
+                rainbowToggleLabel.Name = "RainbowToggleLabel"
+                rainbowToggleLabel.Parent = rainbowToggleContainer
+                rainbowToggleLabel.BackgroundTransparency = 1
+                rainbowToggleLabel.Font = Enum.Font.Gotham
+                rainbowToggleLabel.Text = "Rainbow Mode"
+                rainbowToggleLabel.TextColor3 = themeList.colorOnSurfaceVariant
+                rainbowToggleLabel.TextSize = 13
+                rainbowToggleLabel.Position = UDim2.new(0,0,0,0)
+                rainbowToggleLabel.Size = UDim2.new(1,-70,1,0)
+                rainbowToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+                rainbowToggleLabel.TextYAlignment = Enum.TextYAlignment.Center
+                
+                rainbowSwitchTrack.Name = "RainbowSwitchTrack"
+                rainbowSwitchTrack.Parent = rainbowToggleContainer
+                rainbowSwitchTrack.Size = UDim2.new(0, 52, 0, 28) -- Slightly smaller track
+                rainbowSwitchTrack.Position = UDim2.new(1, -60, 0.5, -14)
+                rainbowSwitchTrack.ClipsDescendants = true
+                rainbowTrackCorner.CornerRadius = UDim.new(0,14)
+                rainbowTrackCorner.Parent = rainbowSwitchTrack
+
+                rainbowSwitchThumb.Name = "RainbowSwitchThumb"
+                rainbowSwitchThumb.Parent = rainbowSwitchTrack
+                rainbowSwitchThumb.Size = UDim2.new(0, 20, 0, 20) -- Slightly smaller thumb
+                rainbowSwitchThumb.BackgroundTransparency = 1
+                rainbowSwitchThumb.Image = "rbxassetid://3926309567" 
+                rainbowSwitchThumb.ImageRectOffset = Vector2.new(628,420) 
+                rainbowSwitchThumb.ImageRectSize = Vector2.new(48,48)
+                rainbowThumbCorner.CornerRadius = UDim.new(0,10)
+                rainbowThumbCorner.Parent = rainbowSwitchThumb
+                
+                rainbowClickDetector.Name = "RainbowClickDetector"
+                rainbowClickDetector.Parent = rainbowSwitchTrack -- Cover the track for clicks
+                rainbowClickDetector.Size = UDim2.new(1,0,1,0)
+                rainbowClickDetector.BackgroundTransparency = 1
+                rainbowClickDetector.Text = ""
+
+                local function UpdateRainbowToggleVisuals(isInstant)
+                    local duration = isInstant and 0 or 0.15
+                    if isRainbow then
+                        Utility:TweenObject(rainbowSwitchTrack, { BackgroundColor3 = themeList.colorPrimary }, duration)
+                        Utility:TweenObject(rainbowSwitchThumb, { Position = UDim2.new(1, -24, 0.5, -10), ImageColor3 = themeList.colorOnPrimary }, duration) -- Adjusted thumb pos
+                    else
+                        Utility:TweenObject(rainbowSwitchTrack, { BackgroundColor3 = themeList.colorOutline }, duration)
+                        Utility:TweenObject(rainbowSwitchThumb, { Position = UDim2.new(0, 4, 0.5, -10), ImageColor3 = themeList.colorSurfaceVariant }, duration) -- Adjusted thumb pos
+                    end
+                end
+                UpdateRainbowToggleVisuals(true)
+
+                rainbowClickDetector.MouseButton1Click:Connect(function()
+                    isRainbow = not isRainbow
+                    UpdateRainbowToggleVisuals(false)
+                    if not isRainbow then
+                        callback(currentColor) -- Call callback with static color when rainbow is turned off
+                    end
+                end)
+
 
                 local moreInfo = Instance.new("TextLabel")
                 local tipCorner = Instance.new("UICorner")
@@ -1832,7 +1908,7 @@ function Kavo.CreateLib(kavName, themeChoice)
                 end
                 UpdateSVThumbPosition()
                 
-                local expandedHeight = 48 + 12 + 130 + 8 + 16 + 8 + 32 + 12 
+                local expandedHeight = 48 + pickerPadding.PaddingTop.Offset + saturationValuePicker.Size.Y.Offset + pickerLayout.Padding.Offset + hueSlider.Size.Y.Offset + pickerLayout.Padding.Offset + rainbowToggleContainer.Size.Y.Offset + pickerPadding.PaddingBottom.Offset
                 local collapsedHeight = 48
 
                 local isPickerOpen = false
@@ -1870,7 +1946,7 @@ function Kavo.CreateLib(kavName, themeChoice)
                 end
 
                 local svDragging = false
-                saturationValuePicker.InputBegan:Connect(function(io) if io.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = true end end)
+                saturationValuePicker.InputBegan:Connect(function(io) if io.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = true HandleColorChange() end end) -- Initial click
                 saturationValuePicker.InputEnded:Connect(function(io) if io.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = false end end)
                 saturationValuePicker.InputChanged:Connect(function(io)
                     if svDragging and io.UserInputType == Enum.UserInputType.MouseMovement then
@@ -1884,14 +1960,14 @@ function Kavo.CreateLib(kavName, themeChoice)
                 end)
                 
                 local hueDragging = false
-                hueSlider.InputBegan:Connect(function(io) if io.UserInputType == Enum.UserInputType.MouseButton1 then hueDragging = true end end)
+                hueSlider.InputBegan:Connect(function(io) if io.UserInputType == Enum.UserInputType.MouseButton1 then hueDragging = true HandleColorChange() end end) -- Initial click
                 hueSlider.InputEnded:Connect(function(io) if io.UserInputType == Enum.UserInputType.MouseButton1 then hueDragging = false end end)
                 hueSlider.InputChanged:Connect(function(io)
                      if hueDragging and io.UserInputType == Enum.UserInputType.MouseMovement then
                         local localPos = hueSlider.AbsolutePosition
                         local mousePos = io.Position
                         h = math.clamp((mousePos.X - localPos.X) / hueSlider.AbsoluteSize.X, 0, 1)
-                        hueThumb.Position = UDim2.new(h, -3, 0.5, -10)
+                        hueThumb.Position = UDim2.new(h, -hueThumb.AbsoluteSize.X*h, 0.5, -hueThumb.AbsoluteSize.Y/2)
                         HandleColorChange()
                     end
                 end)
@@ -1919,7 +1995,6 @@ function Kavo.CreateLib(kavName, themeChoice)
                     end)
                 end)
 
-                local rainbowConnection
                 coroutine.wrap(function()
                     while task.wait() do
                         if not ScreenGui or not ScreenGui.Parent then break end
@@ -1933,12 +2008,13 @@ function Kavo.CreateLib(kavName, themeChoice)
                         pickerFrame.BackgroundColor3 = themeList.colorSurfaceVariant
                         moreInfo.BackgroundColor3 = themeList.colorTertiaryContainer
                         moreInfo.TextColor3 = themeList.colorOnTertiaryContainer
-                        rainbowLabel.TextColor3 = themeList.colorOnSurfaceVariant
+                        rainbowToggleLabel.TextColor3 = themeList.colorOnSurfaceVariant
+                        UpdateRainbowToggleVisuals(true) -- Keep visuals consistent
 
                         if isRainbow then
                             h = (h + 0.005) % 1
                             HandleColorChange()
-                            hueThumb.Position = UDim2.new(h, -3, 0.5, -10)
+                            hueThumb.Position = UDim2.new(h, -hueThumb.AbsoluteSize.X*h, 0.5, -hueThumb.AbsoluteSize.Y/2)
                             callback(currentColor) 
                         end
                     end
@@ -1980,7 +2056,7 @@ function Kavo.CreateLib(kavName, themeChoice)
 		            while task.wait() do
                         if not ScreenGui or not ScreenGui.Parent then break end
                         if not label or not label.Parent then break end
-		                label.TextColor3 = themeList.colorOnSurfaceVariant
+		                if label.TextColor3 ~= themeList.colorOnSurfaceVariant then label.TextColor3 = themeList.colorOnSurfaceVariant end
 		            end
 		        end)()
                 UpdateCanvasSize()
